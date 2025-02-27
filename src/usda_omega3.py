@@ -1,11 +1,9 @@
-# usda_omega3.py
-
 import requests
 import logging
 from deep_translator import GoogleTranslator
-from config import USDA_API_KEY  # Берем API-ключ из конфига
+from config import USDA_API_KEY
+import re
 
-# Настройка логирования (если ещё не настроено в основном модуле)
 logging.basicConfig(level=logging.DEBUG)
 
 SEARCH_URL = "https://api.nal.usda.gov/fdc/v1/foods/search"
@@ -46,6 +44,11 @@ def translate_text(text: str) -> str:
         logging.error(f"Ошибка перевода '{text}': {e}")
         return text.lower()
 
+def is_red_meat_local(product_name: str) -> bool:
+    red_meat_keywords = ["говядин", "свин", "баран", "утят"]
+    clean_name = re.sub(r'[\d,\.]', '', product_name).lower()
+    return any(keyword in clean_name for keyword in red_meat_keywords)
+
 def search_omega3_components(query: str, product_weight: float) -> float:
     params = {
         "api_key": USDA_API_KEY,
@@ -53,35 +56,31 @@ def search_omega3_components(query: str, product_weight: float) -> float:
         "dataType": ["Foundation", "SR Legacy"],
         "pageSize": 20
     }
-    # Подготовка запроса для логирования
-    request = requests.Request("GET", SEARCH_URL, params=params)
-    prepared = request.prepare()
-    logging.debug(f"Отправляем запрос USDA: {prepared.url}")
-    
+    logging.debug(f"Отправляем запрос USDA: {query} с параметрами {params}")
+    response = None
     try:
         response = requests.get(SEARCH_URL, params=params, timeout=10)
+        if response.status_code == 500:
+            logging.debug(f"USDA API вернул 500 для запроса '{query}'. Возвращаем 0.0")
+            return 0.0
         response.raise_for_status()
         data = response.json()
         logging.debug(f"Ответ USDA API: {data}")
     except Exception as e:
-        logging.error(f"Ошибка запроса USDA API: {e}")
-        if hasattr(response, "text"):
+        logging.error(f"Ошибка запроса USDA API для '{query}': {e}")
+        if response is not None and hasattr(response, "text"):
             logging.error(f"Тело ответа: {response.text}")
         return 0.0
 
     if "foods" not in data or not data["foods"]:
-        logging.debug("USDA API вернул пустой список продуктов")
+        logging.debug(f"USDA API вернул пустой список продуктов для запроса '{query}'.")
         return 0.0
 
     for food in data["foods"]:
         food_desc = food.get('description', '').lower()
-        
-        # Если в исходном запросе (или переведённом названии) присутствует 'herring'
-        # и в описании найденного продукта присутствует 'oil', пропускаем этот вариант.
         if "herring" in query.lower() and "oil" in food_desc:
             logging.debug(f"Пропускаем результат (fish oil) для запроса '{query}': {food_desc}")
             continue
-        
         if any(kw in food_desc for kw in EXCLUDED_KEYWORDS):
             logging.debug(f"Пропускаем продукт по исключающим ключевым словам: {food_desc}")
             continue
@@ -114,15 +113,32 @@ def search_omega3_components(query: str, product_weight: float) -> float:
     return 0.0
 
 def get_omega3_for_product(product_name: str, product_weight: float = 100.0) -> float:
+    if is_red_meat_local(product_name):
+        logging.debug(f"Пропускаем USDA API для красного мяса: {product_name}")
+        return 0.0
+
     english_name = translate_text(product_name)
-    omega3 = search_omega3_components(english_name, product_weight)
-    
+    invalid_words = ["feces", "snack/other", "cholegium", "ural", "sugar"]
+    if any(word in english_name for word in invalid_words):
+        logging.debug(f"Translated name '{english_name}' содержит недопустимые слова, пропускаем USDA API запрос.")
+        return 0.0
+
+    try:
+        omega3 = search_omega3_components(english_name, product_weight)
+    except Exception as e:
+        logging.error(f"Ошибка при получении омега‑3 для '{english_name}': {e}")
+        return 0.0
+
     if omega3 > 0:
         return omega3
 
     fallback_query = FALLBACK_MAPPING.get(product_name)
     if fallback_query:
         logging.debug(f"Используем fallback для продукта '{product_name}': {fallback_query}")
-        return search_omega3_components(fallback_query, product_weight)
+        try:
+            return search_omega3_components(fallback_query, product_weight)
+        except Exception as e:
+            logging.error(f"Fallback ошибка для '{fallback_query}': {e}")
+            return 0.0
 
     return 0.0

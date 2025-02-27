@@ -1,7 +1,5 @@
-# vegetable_fruit_filters.py
-
 from fatsecret_api import parse_weight
-import config  # Импорт конфигурации при необходимости
+import config
 
 def filter_vegetable_and_fruit_products(products):
     vegetable_and_fruit_products = []
@@ -14,14 +12,9 @@ def filter_vegetable_and_fruit_products(products):
     return vegetable_and_fruit_products
 
 def classify_vegetable_and_fruit_product(product_name):
-    """
-    Классифицирует продукт как растительный (овощи, фрукты, ягоды, грибы, зелень, травы, овощные смеси)
-    или нет. Исключаются продукты, содержащие признаки молочной продукции.
-    """
     lower_name = product_name.lower()
     print(f"[DEBUG] Проверяем название продукта: {product_name}, в нижнем регистре: {lower_name}")
     
-    # Исключения – молочные продукты
     dairy_exclusions = ["творог", "творожок", "сыр", "молоко", "кефир", "йогурт"]
     if any(dairy_kw in lower_name for dairy_kw in dairy_exclusions):
         return None
@@ -44,22 +37,19 @@ def classify_vegetable_and_fruit_product(product_name):
     return None
 
 def handle_vegetables_and_fruits(products):
-    total_weight = 0.0  # Суммарная масса растительной продукции
-
+    total_weight = 0.0
     plant_products = filter_vegetable_and_fruit_products(products)
     
     for product, weight, product_class in plant_products:
         product_weight = parse_weight(weight)
         total_weight += product_weight
         print(f"[DEBUG] Продукт: {product}, масса: {weight}")
-
     print(f"[DEBUG] Общая масса растительной продукции: {total_weight:.2f} г")
-
+    
     if total_weight < 400:
         message = "Вы сильно не добираете растительности."
     elif 400 <= total_weight < 600:
         message = "Неплохо, но вы немного не добираете растительности."
     else:
         message = "Норма выполнена."
-
     return total_weight, message

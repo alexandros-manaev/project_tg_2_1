@@ -1,5 +1,3 @@
-# red_meat_google_tracker.py
-
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime, timedelta
@@ -16,7 +14,7 @@ spreadsheet = client.open_by_key(config.GOOGLE_SPREADSHEET_ID)
 try:
     sheet = spreadsheet.worksheet("RedMeatWeekly")
 except gspread.WorksheetNotFound:
-    # Если лист не найден, создаем
+    # Если лист не найден, создаем его и задаем заголовки
     sheet = spreadsheet.add_worksheet(title="RedMeatWeekly", rows="1000", cols="4")
     sheet.append_row(["Date", "UserID", "Weight_g", "Protein_g"])
 
@@ -24,6 +22,7 @@ def add_or_update_daily_red_meat(user_id, weight_g, protein_g):
     """
     Добавляет или обновляет запись о красном мясе за сегодняшний день.
     Если запись уже есть, обновляем её новыми значениями.
+    При записи белок форматируем как число с двумя знаками после запятой.
     """
     today_str = datetime.now().strftime("%Y-%m-%d")
     uid_str = str(user_id)
@@ -48,19 +47,21 @@ def add_or_update_daily_red_meat(user_id, weight_g, protein_g):
             found_row = row_idx
             break
 
+    protein_str = format(protein_g, ".2f")  # Форматируем белок с двумя знаками после запятой
+
     if found_row:
-        # Обновляем ячейки
-        logging.info(f"Обновляем красное мясо за {today_str} для user {uid_str}: {weight_g} г, {protein_g} г белка")
+        logging.info(f"Обновляем красное мясо за {today_str} для user {uid_str}: {weight_g} г, {protein_str} г белка")
         sheet.update_cell(found_row, weight_col + 1, weight_g)
-        sheet.update_cell(found_row, protein_col + 1, protein_g)
+        sheet.update_cell(found_row, protein_col + 1, protein_str)
     else:
-        # Добавляем новую строку
-        logging.info(f"Добавляем запись красного мяса за {today_str} для user {uid_str}: {weight_g} г, {protein_g} г белка")
-        sheet.append_row([today_str, uid_str, weight_g, protein_g])
+        logging.info(f"Добавляем запись красного мяса за {today_str} для user {uid_str}: {weight_g} г, {protein_str} г белка")
+        sheet.append_row([today_str, uid_str, weight_g, protein_str])
 
 def get_weekly_red_meat(user_id):
     """
     Суммирует данные красного мяса за текущую неделю (с понедельника) для данного user_id.
+    Если значение белка явно превышает разумное значение (например, больше 100 г),
+    предполагается, что оно сохранено с ошибкой масштабирования, и делится на 100.
     Возвращает (total_weight, total_protein).
     """
     now = datetime.now()
@@ -77,6 +78,9 @@ def get_weekly_red_meat(user_id):
             if record_date.date() >= start_of_week.date() and str(record.get("UserID")) == uid_str:
                 w = float(record.get("Weight_g", 0))
                 p = float(record.get("Protein_g", 0))
+                # Если белок больше 100, предполагаем ошибку масштабирования и делим на 100
+                if p > 100:
+                    p /= 100
                 total_weight += w
                 total_protein += p
         except Exception:
