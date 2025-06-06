@@ -1,5 +1,7 @@
 # src/config.py
 
+import os
+
 # FatSecret OAuth данные
 CONSUMER_KEY = "b24c8716c77d48bd8857f20cdae26271"
 CONSUMER_SECRET = "120cc0911fc04af2a55c3f0c07508abd"
@@ -18,7 +20,14 @@ CALLBACK_URL = "oob"
 TELEGRAM_BOT_TOKEN = "7120699779:AAFr7kZ0PN8zbtWu0_I29uPBH93A1pzj_YA"
 
 # Настройки Google API (если используются)
-GOOGLE_CREDENTIALS_JSON = "/Users/aleksandr/Yandex.Disk.localized/project/credentials/credentials.json"
+# Путь к файлу сервисного аккаунта можно задать через переменную окружения
+# GOOGLE_CREDENTIALS_JSON. Если переменная не установлена, используется
+# файл credentials/credentials.json относительно корня проекта.
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+GOOGLE_CREDENTIALS_JSON = os.getenv(
+    "GOOGLE_CREDENTIALS_JSON",
+    os.path.join(BASE_DIR, "credentials", "credentials.json"),
+)
 GOOGLE_SPREADSHEET_ID = "1Ar-uwpWS57WqnpNfD2nH4r21tfPrSg6pp0lkeCaPrEw"
 
 # Настройки для единиц измерения:
