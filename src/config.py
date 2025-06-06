@@ -18,7 +18,7 @@ CALLBACK_URL = "oob"
 TELEGRAM_BOT_TOKEN = "7120699779:AAFr7kZ0PN8zbtWu0_I29uPBH93A1pzj_YA"
 
 # Настройки Google API (если используются)
-GOOGLE_CREDENTIALS_JSON = "/content/drive/MyDrive/проект ТГ бот/project/credentials/credentials.json"
+GOOGLE_CREDENTIALS_JSON = "/Users/aleksandr/Yandex.Disk.localized/project/credentials/credentials.json"
 GOOGLE_SPREADSHEET_ID = "1Ar-uwpWS57WqnpNfD2nH4r21tfPrSg6pp0lkeCaPrEw"
 
 # Настройки для единиц измерения:

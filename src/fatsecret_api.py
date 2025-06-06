@@ -37,8 +37,11 @@ def parse_weight(weight_str: str) -> float:
 def get_calcium_for_product(product_name: str, access_token: str, access_token_secret: str, product_weight: float = 100.0) -> float:
     print(f"[DEBUG] Расчет кальция для продукта: {product_name}, масса: {product_weight} г")
     lower_name = product_name.lower()
-    base_calcium = 50.0
-    if "молоко" in lower_name or "milk" in lower_name:
+    # Если продукт относится к альтернативному молоку или содержит слово "немолоко"
+    alternative_keywords = ["кокос", "соев", "миндал", "овся", "рисов", "немолоко"]
+    if any(keyword in lower_name for keyword in alternative_keywords):
+        base_calcium = 50.0
+    elif "молоко" in lower_name or "milk" in lower_name:
         base_calcium = 250.0
     elif "кефир" in lower_name or "kefir" in lower_name:
         base_calcium = 200.0
@@ -52,6 +55,8 @@ def get_calcium_for_product(product_name: str, access_token: str, access_token_s
         base_calcium = 300.0
     elif "сливки" in lower_name or "сметана" in lower_name or "cream" in lower_name:
         base_calcium = 100.0
+    else:
+        base_calcium = 50.0
     calcium = base_calcium * (product_weight / 100.0)
     print(f"[DEBUG] Для '{product_name}' с массой {product_weight} г возвращено значение кальция: {calcium:.2f} мг")
     return calcium

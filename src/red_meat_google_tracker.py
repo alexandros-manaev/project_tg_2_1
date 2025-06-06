@@ -1,89 +1,73 @@
 import gspread
-from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime, timedelta
 import logging
 import config
 
-# Подключение к Google Sheets
-SCOPE = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
-creds = ServiceAccountCredentials.from_json_keyfile_name(config.GOOGLE_CREDENTIALS_JSON, SCOPE)
-client = gspread.authorize(creds)
-
-# Открываем таблицу по ID и выбираем лист "RedMeatWeekly"
+# Авторизация через gspread напрямую из JSON
+client = gspread.service_account(filename=config.GOOGLE_CREDENTIALS_JSON)
 spreadsheet = client.open_by_key(config.GOOGLE_SPREADSHEET_ID)
-try:
-    sheet = spreadsheet.worksheet("RedMeatWeekly")
-except gspread.WorksheetNotFound:
-    # Если лист не найден, создаем его и задаем заголовки
-    sheet = spreadsheet.add_worksheet(title="RedMeatWeekly", rows="1000", cols="4")
-    sheet.append_row(["Date", "UserID", "Weight_g", "Protein_g"])
 
-def add_or_update_daily_red_meat(user_id, weight_g, protein_g):
-    """
-    Добавляет или обновляет запись о красном мясе за сегодняшний день.
-    Если запись уже есть, обновляем её новыми значениями.
-    При записи белок форматируем как число с двумя знаками после запятой.
-    """
+try:
+    sheet = spreadsheet.worksheet("Omega3Weekly")
+except gspread.WorksheetNotFound:
+    sheet = spreadsheet.add_worksheet(title="Omega3Weekly", rows="1000", cols="3")
+    sheet.append_row(["Date", "UserID", "Omega3"])
+
+def add_or_update_daily_omega(user_id, omega_value):
     today_str = datetime.now().strftime("%Y-%m-%d")
     uid_str = str(user_id)
 
-    # Считываем все строки
     all_values = sheet.get_all_values()
     header = all_values[0] if all_values else []
-    # Определим индексы столбцов (Date, UserID, Weight_g, Protein_g)
+
     try:
-        date_col = header.index("Date")
-        user_col = header.index("UserID")
-        weight_col = header.index("Weight_g")
-        protein_col = header.index("Protein_g")
+        date_index = header.index("Date")
+        user_index = header.index("UserID")
+        omega_index = header.index("Omega3")
     except ValueError:
-        logging.error("Не найдены нужные заголовки в листе RedMeatWeekly")
+        logging.error("Заголовки не найдены")
         return
 
     found_row = None
-    # Начинаем со второй строки, так как первая — заголовки
-    for row_idx, row in enumerate(all_values[1:], start=2):
-        if len(row) > user_col and row[date_col] == today_str and row[user_col] == uid_str:
-            found_row = row_idx
+    for i, row in enumerate(all_values[1:], start=2):
+        if len(row) > user_index and row[date_index] == today_str and row[user_index] == uid_str:
+            found_row = i
             break
 
-    protein_str = format(protein_g, ".2f")  # Форматируем белок с двумя знаками после запятой
+    # Преобразуем число в строку с запятой вместо точки (если требуется)
+    omega_str = str(omega_value).replace('.', ',')
 
     if found_row:
-        logging.info(f"Обновляем красное мясо за {today_str} для user {uid_str}: {weight_g} г, {protein_str} г белка")
-        sheet.update_cell(found_row, weight_col + 1, weight_g)
-        sheet.update_cell(found_row, protein_col + 1, protein_str)
+        # Вместо накопления, перезаписываем значение для данного дня
+        sheet.update_cell(found_row, omega_index + 1, omega_str)
     else:
-        logging.info(f"Добавляем запись красного мяса за {today_str} для user {uid_str}: {weight_g} г, {protein_str} г белка")
-        sheet.append_row([today_str, uid_str, weight_g, protein_str])
+        sheet.append_row([today_str, uid_str, omega_str])
 
-def get_weekly_red_meat(user_id):
-    """
-    Суммирует данные красного мяса за текущую неделю (с понедельника) для данного user_id.
-    Если значение белка явно превышает разумное значение (например, больше 100 г),
-    предполагается, что оно сохранено с ошибкой масштабирования, и делится на 100.
-    Возвращает (total_weight, total_protein).
-    """
+def get_weekly_omega(user_id):
     now = datetime.now()
     start_of_week = now - timedelta(days=now.weekday())
     uid_str = str(user_id)
+    total_omega = 0.0
 
-    all_records = sheet.get_all_records()
-    total_weight = 0.0
-    total_protein = 0.0
+    all_values = sheet.get_all_values()
+    header = all_values[0] if all_values else []
 
-    for record in all_records:
+    try:
+        date_index = header.index("Date")
+        user_index = header.index("UserID")
+        omega_index = header.index("Omega3")
+    except ValueError:
+        logging.error("Заголовки не найдены")
+        return 0.0
+
+    for record in all_values[1:]:
         try:
-            record_date = datetime.strptime(record.get("Date"), "%Y-%m-%d")
-            if record_date.date() >= start_of_week.date() and str(record.get("UserID")) == uid_str:
-                w = float(record.get("Weight_g", 0))
-                p = float(record.get("Protein_g", 0))
-                # Если белок больше 100, предполагаем ошибку масштабирования и делим на 100
-                if p > 100:
-                    p /= 100
-                total_weight += w
-                total_protein += p
-        except Exception:
+            record_date = datetime.strptime(record[date_index], "%Y-%m-%d")
+            if record_date.date() >= start_of_week.date() and record[user_index] == uid_str:
+                omega_str = record[omega_index].replace(',', '.')
+                total_omega += float(omega_str)
+        except Exception as e:
+            logging.error(f"Ошибка обработки записи: {e}")
             continue
 
-    return total_weight, total_protein
+    return total_omega
