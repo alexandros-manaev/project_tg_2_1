@@ -1,16 +1,19 @@
+import logging
+
+
 def filter_dairy_products(products, api_categories):
     dairy_products = []
     for product, weight, *rest in products:
-        print(f"[DEBUG] Обрабатываем продукт: {product} с массой {weight}")
+        logging.debug(f"Обрабатываем продукт: {product} с массой {weight}")
         dairy_class = classify_dairy_product(product, api_categories)
         if dairy_class:
             dairy_products.append((product, weight, dairy_class))
-    print(f"[DEBUG] Отфильтрованные молочные продукты: {dairy_products}")
+    logging.debug(f"Отфильтрованные молочные продукты: {dairy_products}")
     return dairy_products
 
 def classify_dairy_product(product_name, api_category=None):
     lower_name = product_name.lower()
-    print(f"[DEBUG] Проверяем название продукта: {product_name}, в нижнем регистре: {lower_name}")
+    logging.debug(f"Проверяем название продукта: {product_name}, в нижнем регистре: {lower_name}")
     
     # Сначала исключаем альтернативное молоко и продукты с "немолоко"
     alternative_keywords = ["кокос", "соев", "миндал", "овся", "рисов", "немолоко"]

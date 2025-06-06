@@ -1,4 +1,5 @@
 import csv
+import logging
 
 def load_local_omega3_db(file_path):
     """
@@ -16,7 +17,7 @@ def load_local_omega3_db(file_path):
                 cleaned_row = {k.strip(): v.strip() for k, v in row.items()}
                 data.append(cleaned_row)
     except Exception as e:
-        print(f"Ошибка загрузки локальной базы: {e}")
+        logging.debug(f"Ошибка загрузки локальной базы: {e}")
     return data
 
 def get_local_omega3(file_path):
