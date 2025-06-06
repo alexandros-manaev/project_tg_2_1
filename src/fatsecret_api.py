@@ -7,6 +7,7 @@ import requests
 import random
 from urllib.parse import quote
 import config
+import logging
 
 def parse_weight(weight_str: str) -> float:
     weight_str = weight_str.replace("\u00A0", " ").lower().strip()
@@ -35,7 +36,7 @@ def parse_weight(weight_str: str) -> float:
     return 0.0
 
 def get_calcium_for_product(product_name: str, access_token: str, access_token_secret: str, product_weight: float = 100.0) -> float:
-    print(f"[DEBUG] Расчет кальция для продукта: {product_name}, масса: {product_weight} г")
+    logging.debug(f"Расчет кальция для продукта: {product_name}, масса: {product_weight} г")
     lower_name = product_name.lower()
     # Если продукт относится к альтернативному молоку или содержит слово "немолоко"
     alternative_keywords = ["кокос", "соев", "миндал", "овся", "рисов", "немолоко"]
@@ -58,5 +59,5 @@ def get_calcium_for_product(product_name: str, access_token: str, access_token_s
     else:
         base_calcium = 50.0
     calcium = base_calcium * (product_weight / 100.0)
-    print(f"[DEBUG] Для '{product_name}' с массой {product_weight} г возвращено значение кальция: {calcium:.2f} мг")
+    logging.debug(f"Для '{product_name}' с массой {product_weight} г возвращено значение кальция: {calcium:.2f} мг")
     return calcium
