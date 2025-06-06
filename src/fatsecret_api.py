@@ -6,7 +6,7 @@ import base64
 import requests
 import random
 from urllib.parse import quote
-import config
+from . import config
 
 def parse_weight(weight_str: str) -> float:
     weight_str = weight_str.replace("\u00A0", " ").lower().strip()
